@@ -49,13 +49,13 @@
 <img width="272" height="153" alt="image" src="https://github.com/user-attachments/assets/8a216a0c-b904-48e5-aa78-bd21d80e3052" />
 <p>******************************</p>
 <p>Создаем каталог ~/task19, а в нем Vagrantfile для развертывания виртуальных машин. Скачаем Vagrantfile из репозитория https://github.com/erlong15/otus-linux/tree/network
-и изменим его в соответствии с заданием и обходным решением, описанным выше. ОС Ubuntu 22.04, добавляем новые хосты и сетевые настройки для хостов. Измененный файл прикладываю сюда.</p>
+и изменим его в соответствии с заданием и обходным решением, описанным выше. ОС Ubuntu 22.04, добавляем новые ВМ и сетевые настройки для них. Измененный файл прикладываю сюда.</p>
 <p>После выполнения команды <code>vagrant up</code> получим 7 виртуальных машин.</p>
 <img width="1089" height="562" alt="image" src="https://github.com/user-attachments/assets/6dfede39-7dc0-4f82-a807-149d5c8b3b4b" />
 <p>&nbsp;</p>
 <p><span style="font-weight: 400;">После того, как все 7 серверов у нас развернуты, нам нужно настроить маршрутизацию и NAT таким образом, чтобы доступ в Интернет со всех хостов был через inetRouter и каждый сервер должен быть доступен с любого из 7 хостов.</span></p>
 <p><strong>Настройка NAT</strong></p>
-<p><span style="font-weight: 400;">1) Подключимся по SSH к хосту inetRouter:</p>
+<p><span style="font-weight: 400;">1) Подключимся по SSH к ВМ inetRouter:</p>
 <p><span style="font-weight: 400;"><code>vagrant ssh inetRouter</code></p>
 <p><span style="font-weight: 400;"><code>sudo -i</code></p>
 <p><span style="font-weight: 400;">2) Проверим, включен ли файервол: <code>systemctl status ufw</code></p>
@@ -74,3 +74,48 @@
 <p>&nbsp;</p>
 <p><span style="font-weight: 400;">4) Создаём файл, в который добавим скрипт автоматического восстановления правил при перезапуске системы:</span></p>
 <p><code>nano /etc/network/if-pre-up.d/iptables</code></p>
+<p><span style="font-weight: 400;">#!/bin/sh</span></p>
+<p><span style="font-weight: 400;">/sbin/iptables-restore &lt; /etc/iptables_rules.ipv4</span></p>
+<img width="540" height="79" alt="image" src="https://github.com/user-attachments/assets/c2ae199a-84a3-4218-8a06-7146297faf19" />
+<p>&nbsp;</p>
+<p><span style="font-weight: 400;">5) Добавляем права на выполнение файла /etc/network/if-pre-up.d/iptables</span></p>
+<p><code>chmod +x /etc/network/if-pre-up.d/iptables</code></p>
+<p><span style="font-weight: 400;">6) Перезагружаем сервер: <code>reboot</code></p>
+<p><span style="font-weight: 400;">7) После перезагрузки сервера проверяем правила iptables: <code>iptables-save</code></p>
+<p><strong>Настройка NAT через Ansible</strong></p>
+<p><span style="font-weight: 400;">Выполним идентичные действия с помощью Ansible, для этого создадим на хостовой машине плейбук ~/task19/playbook.yml и добавим в него следующие команды:</p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;- name: Set up NAT on inetRouter</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;template:&nbsp;</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: "{{ item.src }}"</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dest: "{{ item.dest }}"</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner: root</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;group: root</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mode: "{{ item.mode }}"</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;with_items:</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- { src: "iptables_rules.ipv4", dest: </span></em><strong><em>"/etc/iptables_rules.ipv4"</em></strong><em><span style="font-weight: 400;">, mode: "0644" }</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- { src: "iptables_restore", dest: </span></em><strong><em>"/etc/network/if-pre-up.d/iptables"</em></strong><em><span style="font-weight: 400;">, mode: </span></em><strong><em>"0755"</em></strong><em><span style="font-weight: 400;"> }</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;when: (ansible_hostname == "inetRouter")</span></em></p>
+<p><span style="font-weight: 400;">Модуль template копирует 2 файла, которые были указаны выше. Их тоже создаем здесь. Для файла <strong>/etc/network/if-pre-up.d/iptables</strong> уже установлен атрибут выполнения файла.</p>
+<p><strong>Настройка маршрутизации транзитных пакетов с помощью Ansible</strong></p>
+<p><span style="font-weight: 400;">В нашей схеме необходимо включить данную маршрутизацию на всех роутерах.</span></p>
+<p><span style="font-weight: 400;">В Ansible есть специальный блок для внесений изменений в параметры ядра:</span></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;- name: set up forward packages across routers</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;sysctl:</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name: net.ipv4.conf.all.forwarding</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;value: '1'</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;state: present</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;when: "'routers' in group_names"</span></em></p>
+<p><span style="font-weight: 400;">В условии указано, что изменения будут применяться только для группы &laquo;routers&raquo;, группа routers создана в hosts-файле:</span></p>
+<p><strong><em>[routers]</em></strong></p>
+<p><strong><em>inetRouter</em></strong><em><span style="font-weight: 400;"> ansible_host=192.168.50.10 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/inetRouter/virtualbox/private_key&nbsp;</span></em></p>
+<p><strong><em>centralRouter</em></strong><em><span style="font-weight: 400;"> ansible_host=192.168.50.11 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/centralRouter/virtualbox/private_key&nbsp;</span></em></p>
+<p><strong><em>office1Router</em></strong><em><span style="font-weight: 400;"> ansible_host=192.168.50.20 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office1Router/virtualbox/private_key&nbsp;</span></em></p>
+<p><strong><em>office2Router </em></strong><em><span style="font-weight: 400;">ansible_host=192.168.50.30 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office2Router/virtualbox/private_key</span></em></p>
+<p><span style="font-weight: 400;">Файл hosts &mdash; это файл инвентаризации, в нем указан список серверов, их адреса, группы и способы доступа на сервер.</span></p>
+
+
+
+
+
+
+

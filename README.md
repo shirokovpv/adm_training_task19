@@ -112,6 +112,10 @@
 <p><strong><em>centralRouter</em></strong><em><span style="font-weight: 400;"> ansible_host=192.168.50.11 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/centralRouter/virtualbox/private_key&nbsp;</span></em></p>
 <p><strong><em>office1Router</em></strong><em><span style="font-weight: 400;"> ansible_host=192.168.50.20 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office1Router/virtualbox/private_key&nbsp;</span></em></p>
 <p><strong><em>office2Router </em></strong><em><span style="font-weight: 400;">ansible_host=192.168.50.30 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office2Router/virtualbox/private_key</span></em></p>
+<p><strong><em>[servers]</em></strong></p>
+<p><em>centralServer ansible_host=192.168.50.12 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/centralServer/virtualbox/private_key</em></p>
+<p><em>office1Server ansible_host=192.168.50.21 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office1Server/virtualbox/private_key</em></p>
+<p><em>office2Server ansible_host=192.168.50.31 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office2Server/virtualbox/private_key</em></p>
 <p><span style="font-weight: 400;">Файл hosts &mdash; это файл инвентаризации, в нем указан список серверов, их адреса, группы и способы доступа на сервер.</span></p>
 <p><strong>Отключение маршрута по умолчанию с помощью Ansible</strong></p>
 <p><span style="font-weight: 400;">При разворачивании нашего стенда Vagrant создает в каждом сервере свой интерфейс, через который у сервера появляется доступ в интернет. Отключить данный порт нельзя, так как через него Vagrant подключается к серверам. Обычно маршрут по умолчанию прописан как раз на этот интерфейс, данный маршрут нужно отключить.</span></p>
@@ -189,12 +193,12 @@
 <p><span style="font-weight: 400;">На данном этапе настройка серверов закончена. После настройки серверов рекомендуется перезагрузить все хосты, чтобы проверить, что правила не удаляются после перезагрузки.&nbsp;</span></p>
 <p><span style="font-weight: 400;">Помимо этого, рекомендуется на все хосты установить утилиту traceroute, для проверки нашего стенда.</span></p>
 <p><span style="font-weight: 400;">Установка traceroute: </span><code>apt install -y traceroute</code></p>
-<p><span style="font-weight: 400;">Можно добавить в плейбук (до перезагрузки) команду для установки пакета:</span></p>
+<p><span style="font-weight: 400;">Можно добавить в плейбук (в начало) команду для установки пакета:</span></p>
 <p>&nbsp; - name: install traceroute<br />&nbsp; &nbsp; ansible.builtin.apt:<br />&nbsp; &nbsp; &nbsp; name: traceroute<br />&nbsp; &nbsp; &nbsp; state: present<br />&nbsp; &nbsp; &nbsp; update_cache: yes</p>
 <p><span style="font-weight: 400;">Для того, чтобы Ansible запускался сразу после развертывания серверов командой vagrant up, в текущий Vagrantfile нужно добавить блок запуска Ansible. Данный блок рекомендуется добавить после блока развертывания виртуальных машин:</span></p>
 <p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if boxconfig[:vm_name] == "office2Server"</span></p>
 <p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;box.vm.provision "ansible" do |ansible|</span></p>
-<p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ansible.playbook = "playbook.yml"</span></p>
+<p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ansible.playbook = "playbook.yaml"</span></p>
 <p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ansible.inventory_path = "hosts"</span></p>
 <p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ansible.host_key_checking = "false"</span></p>
 <p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ansible.limit = "all"</span></p>
@@ -202,7 +206,18 @@
 <p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;end</span></p>
 <p><span style="font-weight: 400;">При добавлении блока Ansible в Vagrant, Ansible будет запускаться после создания каждой ВМ, это создаст ошибку в разворачивании стенда и стенд не развернется. Для того, чтобы Ansible запустился после создания виртуальных машин, можно добавить условие, которое будет сравнивать имя виртуальной машины, и, когда условный оператор увидит имя последней созданной ВМ (office2Server), он запустит Ansible.&nbsp;</span></p>
 <p><span style="font-weight: 400;">Разворачивание 7 виртуальных машин &mdash; процесс достаточно затратный для ресурсов компьютера, да и по времени тоже. При разворачивании стенда с помощью Ansible иногда могут вылетать ошибки из-за сетевой связности. Это не страшно, после того как ВМ будут созданы, можно просто ещё раз запустить процесс настройки через ansible с помощью команды:</span> <code>vagrant provision</code></p>
-
-
-
-
+<p><span style="font-weight: 400;">Пример проверки выхода в Интернет через сервер inetRouter c хоста office1Server:</span></p>
+<p><code>vagrant ssh office1Server</code></p>
+<p><code>traceroute 8.8.8.8</code></p>
+<img width="1332" height="623" alt="image" src="https://github.com/user-attachments/assets/c979c58f-c150-4382-9198-9801c739e3c6" />
+<p>&nbsp;</p>
+<p>******************************</p>
+<p><span style="font-weight: 400;"><strong>НЕОБХОДИМО ЗАМЕТИТЬ: </strong>После всех произведенных установок и настроек по методичке команда <code>traceroute 8.8.8.8</code> отрабатывала верно только на роутере inetRouter. С остальных хостов traceroute 8.8.8.8 не проходил дальше адреса 192.168.255.1 - видно, что-то не сработало как надо с NAT и форвардингом, настроенными через Ansible.</p>
+<p><span style="font-weight: 400;">Исправить удалось с помощью добавления вручную записей iptables на роутере inetRouter и сохранения их утилитой iptables-persistent (чтобы не пропали после перезагрузки):</p>
+<p>vagrant@inetRouter:~$ sudo apt install iptables-persistent</p>
+<p>vagrant@inetRouter:~$ sudo iptables -t nat -A POSTROUTING -o enp0s3 -j MASQUERADE</p>
+<p>vagrant@inetRouter:~$ sudo iptables -A FORWARD -i enp0s8 -o enp0s3 -m state --state RELATED,ESTABLISHED -j ACCEPT</p>
+<p>vagrant@inetRouter:~$ sudo iptables -A FORWARD -i enp0s8 -o enp0s3 -j ACCEPT</p>
+<p>vagrant@inetRouter:~$ sudo netfilter-persistent save</p>
+<p>******************************</p>
+<p>Сеть настроена. Все файлы прикладываю сюда. Задание завершено</p>

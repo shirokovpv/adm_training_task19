@@ -98,7 +98,7 @@
 <p><span style="font-weight: 400;">Модуль template копирует 2 файла, которые были указаны выше. Их тоже создаем здесь. Для файла <strong>/etc/network/if-pre-up.d/iptables</strong> уже установлен атрибут выполнения файла.</p>
 <p><strong>Настройка маршрутизации транзитных пакетов с помощью Ansible</strong></p>
 <p><span style="font-weight: 400;">В нашей схеме необходимо включить данную маршрутизацию на всех роутерах.</span></p>
-<p><span style="font-weight: 400;">В Ansible есть специальный блок для внесений изменений в параметры ядра:</span></p>
+<p><span style="font-weight: 400;">В Ansible есть специальный блок для внесений изменений в параметры ядра. Добавим его в плейбук:</span></p>
 <p><em><span style="font-weight: 400;">&nbsp;&nbsp;- name: set up forward packages across routers</span></em></p>
 <p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;sysctl:</span></em></p>
 <p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name: net.ipv4.conf.all.forwarding</span></em></p>
@@ -112,8 +112,29 @@
 <p><strong><em>office1Router</em></strong><em><span style="font-weight: 400;"> ansible_host=192.168.50.20 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office1Router/virtualbox/private_key&nbsp;</span></em></p>
 <p><strong><em>office2Router </em></strong><em><span style="font-weight: 400;">ansible_host=192.168.50.30 ansible_user=vagrant ansible_ssh_private_key_file=.vagrant/machines/office2Router/virtualbox/private_key</span></em></p>
 <p><span style="font-weight: 400;">Файл hosts &mdash; это файл инвентаризации, в нем указан список серверов, их адреса, группы и способы доступа на сервер.</span></p>
-
-
+<p><strong>Отключение маршрута по умолчанию с помощью Ansible</strong></p>
+<p><span style="font-weight: 400;">При разворачивании нашего стенда Vagrant создает в каждом сервере свой интерфейс, через который у сервера появляется доступ в интернет. Отключить данный порт нельзя, так как через него Vagrant подключается к серверам. Обычно маршрут по умолчанию прописан как раз на этот интерфейс, данный маршрут нужно отключить.</span></p>
+<p><span style="font-weight: 400;">Отключение дефолтного маршрута требуется настроить на всех хостах кроме inetRouter.</span></p>
+<p><span style="font-weight: 400;">Для отключения маршрута по умолчанию в файле </span><strong>/etc/netplan/00-installer-config.yaml</strong><span style="font-weight: 400;"> добавляем</span><span style="font-weight: 400;"> отключение маршрутов, полученных через DHCP</span><strong>:</strong></p>
+<p><span style="font-weight: 400;"># This is the network config written by 'subiquity'</span></p>
+<p><span style="font-weight: 400;">network:</span></p>
+<p><span style="font-weight: 400;">&nbsp;&nbsp;ethernets:</span></p>
+<p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;eth0:</span></p>
+<p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dhcp4: true</span></p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dhcp4-overrides:</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;use-routes: false</p>
+<p><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dhcp6: false</span></p>
+<p><span style="font-weight: 400;">&nbsp;&nbsp;version: 2</span></p>
+<p><span style="font-weight: 400;">Для выполнения идентичных изменений с помощью Ansible, можно воспользоваться следующим блоком:</span></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;- name: disable default route</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;template:&nbsp;</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: 00-installer-config.yaml</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dest: /etc/netplan/00-installer-config.yaml</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;owner: root</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;group: root</span></em></p>
+<p><em><span style="font-weight: 400;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mode: 0644</span></em></p>
+<p><em>&nbsp;&nbsp;&nbsp;&nbsp;when: (ansible_hostname != "inetRouter")</em></p>
+<p><span style="font-weight: 400;">Добавим его в плейбук, также создадим файл 00-installer-config.yaml.</span></p>
 
 
 
